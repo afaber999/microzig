@@ -1,7 +1,5 @@
 pub const experimental = @import("core/experimental.zig");
-/// USB data types and helper functions
-pub const usb = @import("core/usb.zig");
+// USB data types and helper functions
+// AF IGNORE FOR NOW pub const usb = @import("core/usb.zig");
 
-test "core tests" {
-    _ = usb;
-}
+test "core tests" {}

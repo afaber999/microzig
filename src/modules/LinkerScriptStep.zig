@@ -94,6 +94,8 @@ fn make(step: *Step, _: *std.Progress.Node) anyerror!void {
             \\  {
             \\     KEEP(*(microzig_flash_start))
             \\     *(.text*)
+            \\     *(.rodata*)
+            \\     . = ALIGN(4);
             \\  } > flash0
             \\
             \\
@@ -103,6 +105,7 @@ fn make(step: *Step, _: *std.Progress.Node) anyerror!void {
             .arm, .thumb => try writer.writeAll(
                 \\  .ARM.exidx : {
                 \\      *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+                \\      . = ALIGN(4);
                 \\  } >flash0
                 \\
                 \\
@@ -114,15 +117,17 @@ fn make(step: *Step, _: *std.Progress.Node) anyerror!void {
             \\  .data :
             \\  {
             \\     microzig_data_start = .;
-            \\     *(.rodata*)
             \\     *(.data*)
+            \\     . = ALIGN(4);
             \\     microzig_data_end = .;
             \\  } > ram0 AT> flash0
             \\
             \\  .bss (NOLOAD) :
             \\  {
             \\      microzig_bss_start = .;
+            \\      *(.bss)
             \\      *(.bss*)
+            \\     . = ALIGN(4);
             \\      microzig_bss_end = .;
             \\  } > ram0
             \\

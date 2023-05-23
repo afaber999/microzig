@@ -51,7 +51,7 @@ comptime {
     // .rodata is not always necessary to be populated (flash based systems
     // can just index flash, while harvard or flash-less architectures need
     // to copy .rodata into RAM).
-    _ = microzig.cpu.startup_logic;
+    //_ = microzig.cpu.startup_logic;
 
     // Export the vector table to flash start if we have any.
     // For a lot of systems, the vector table provides a reset vector
@@ -84,6 +84,10 @@ comptime {
 /// circular dependency between the `microzig` and `chip` package. This function is also likely
 /// to be invoked from assembly, so it's also convenient in that regard.
 export fn microzig_main() noreturn {
+
+    // not sure check
+    initialize_system_memories();
+
     if (!@hasDecl(app, "main"))
         @compileError("The root source file must provide a public function main!");
 
@@ -138,29 +142,15 @@ pub fn initialize_system_memories() void {
     @setCold(true);
 
     // fill .bss with zeroes
-    {
-        const bss_start = @ptrCast([*]u8, &sections.microzig_bss_start);
-        const bss_end = @ptrCast([*]u8, &sections.microzig_bss_end);
-        const bss_len = @ptrToInt(bss_end) - @ptrToInt(bss_start);
+    const bss_start = @ptrCast([*]u8, &sections.microzig_bss_start);
+    const bss_end = @ptrCast([*]u8, &sections.microzig_bss_end);
+    const bss_len = @ptrToInt(bss_end) - @ptrToInt(bss_start);
+    @memset(bss_start, 0x00, bss_len);
 
-        //@memset(bss_start[0..bss_len], 0);
-        var i = 0;
-        while (i < bss_len) : (i +%= 1) {
-            bss_start[i] = 0x00;
-        }
-    }
+    const data_start = @ptrCast([*]u8, &sections.microzig_data_start);
+    const data_end = @ptrCast([*]u8, &sections.microzig_data_end);
+    const data_len = @ptrToInt(data_end) - @ptrToInt(data_start);
+    const data_src = @ptrCast([*]const u8, &sections.microzig_data_load_start);
 
-    // load .data from flash
-    {
-        const data_start = @ptrCast([*]u8, &sections.microzig_data_start);
-        const data_end = @ptrCast([*]u8, &sections.microzig_data_end);
-        const data_len = @ptrToInt(data_end) - @ptrToInt(data_start);
-        const data_src = @ptrCast([*]const u8, &sections.microzig_data_load_start);
-
-        //@memcpy(data_start[0..data_len], data_src[0..data_len]);
-        var i = 0;
-        while (i < data_len) : (i +%= 1) {
-            data_start[i] = data_src[i];
-        }
-    }
+    @memcpy( data_start, data_src, data_len);
 }

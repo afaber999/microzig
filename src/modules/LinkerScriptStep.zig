@@ -48,7 +48,12 @@ fn make(step: *Step, _: *std.Progress.Node) anyerror!void {
         // This is not the "true" entry point, but there's no such thing on embedded platforms
         // anyways. This is the logical entrypoint that should be invoked when
         // stack, .data and .bss are set up and the CPU is ready to be used.
-        \\ENTRY(microzig_main);
+        //\\ENTRY(microzig_main);
+
+        // Think the entry point should be the _start location, this is also the entry point
+        // of the reset vector. Therefore the .bss section is initialized and the .data is copied
+        // from flash to ram
+        \\ENTRY(_start);
         \\
         \\
     , .{ linkerscript.chip.cpu.name, linkerscript.chip.name });

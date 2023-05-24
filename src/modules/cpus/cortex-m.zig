@@ -67,67 +67,40 @@ pub fn clrex() void {
     asm volatile ("clrex");
 }
 
-// pub const startup_logic = struct {
-//     extern fn microzig_main() noreturn;
+pub const startup_logic = struct {
+    extern fn microzig_main() noreturn;
 
-//     pub extern var microzig_data_start: anyopaque;
-//     pub extern var microzig_data_end: anyopaque;
-//     pub extern var microzig_bss_start: anyopaque;
-//     pub extern var microzig_bss_end: anyopaque;
-//     pub extern const microzig_data_load_start: anyopaque;
+    pub export fn _start() callconv(.C) noreturn {
+        const sections = struct {
+            extern var microzig_data_start: anyopaque;
+            extern var microzig_data_end: anyopaque;
+            extern var microzig_bss_start: anyopaque;
+            extern var microzig_bss_end: anyopaque;
+            extern const microzig_data_load_start: anyopaque;
+        };
 
-//     // pub fn pch(c: u8) void {
-//     //     var ch_ptr: *const u8 = &c;
-//     //     asm volatile (
-//     //         \\mov r0, 03
-//     //         \\mov r1, %[ch]
-//     //         \\nop
-//     //         \\bkpt #0xAB
-//     //         :
-//     //         : [ch] "r" (ch_ptr),
-//     //         : "r0", "r1"
-//     //     );
-//     // }
+        // fill .bss with zeroes
+        const bss_start = @ptrCast([*]u8, &sections.microzig_bss_start);
+        const bss_end = @ptrCast([*]u8, &sections.microzig_bss_end);
+        const bss_len = @ptrToInt(bss_end) - @ptrToInt(bss_start);
+        @memset(bss_start, 0x00, bss_len);
 
-//     // pub fn _start() callconv(.C) noreturn {
+        // copy .data section from flash to ram
+        const data_start = @ptrCast([*]u8, &sections.microzig_data_start);
+        const data_end = @ptrCast([*]u8, &sections.microzig_data_end);
+        const data_len = @ptrToInt(data_end) - @ptrToInt(data_start);
+        const data_src = @ptrCast([*]const u8, &sections.microzig_data_load_start);
+        @memcpy(data_start, data_src, data_len);
 
-//     //     // fill .bss with zeroes
-//     //     {
-//     //         const bss_start = @ptrCast([*]u8, &microzig_bss_start);
-//     //         const bss_end = @ptrCast([*]u8, &microzig_bss_end);
-//     //         const bss_len = @ptrToInt(bss_end) - @ptrToInt(bss_start);
-
-//     //         // @memset(bss_start[0..bss_len], 0);
-//     //         var i: u32 = 0;
-//     //         while (i < bss_len) : (i +%= 1) {
-//     //             bss_start[i] = 0xAA;
-//     //         }
-//     //     }
-//     //     // load .data from flash
-//     //     {
-//     //         const data_start = @ptrCast([*]u8, &microzig_data_start);
-//     //         const data_end = @ptrCast([*]u8, &microzig_data_end);
-//     //         const data_len = @ptrToInt(data_end) - @ptrToInt(data_start);
-//     //         const data_src = @ptrCast([*]const u8, &microzig_data_load_start);
-
-//     //         // memcpy(data_start[0..data_len], data_src[0..data_len]);
-//     //         var i: u32 = 0;
-//     //         while (i < data_len) : (i +%= 1) {
-//     //             data_start[i] = data_src[i];
-//     //         }
-//     //     }
-
-//     //     microzig_main();
-//     // }
-// };
+        microzig_main();
+    }
+};
 
 fn is_valid_field(field_name: []const u8) bool {
     return !std.mem.startsWith(u8, field_name, "reserved") and
         !std.mem.eql(u8, field_name, "initial_stack_pointer") and
         !std.mem.eql(u8, field_name, "reset");
 }
-
-extern fn microzig_main() noreturn;
 
 const VectorTable = if (@hasDecl(root, "microzig_options") and @hasDecl(root.microzig_options, "VectorTable"))
     root.microzig_options.VectorTable
@@ -140,7 +113,7 @@ else
 pub var vector_table: VectorTable = blk: {
     var tmp: VectorTable = .{
         .initial_stack_pointer = microzig.config.end_of_stack,
-        .Reset = .{ .C = microzig_main },
+        .Reset = .{ .C = microzig.cpu.startup_logic._start },
     };
     if (@hasDecl(root, "microzig_options") and @hasDecl(root.microzig_options, "interrupts")) {
         const interrupts = root.microzig_options.interrupts;

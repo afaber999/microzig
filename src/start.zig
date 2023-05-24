@@ -51,7 +51,7 @@ comptime {
     // .rodata is not always necessary to be populated (flash based systems
     // can just index flash, while harvard or flash-less architectures need
     // to copy .rodata into RAM).
-    //_ = microzig.cpu.startup_logic;
+    _ = microzig.cpu.startup_logic;
 
     // Export the vector table to flash start if we have any.
     // For a lot of systems, the vector table provides a reset vector
@@ -84,9 +84,6 @@ comptime {
 /// circular dependency between the `microzig` and `chip` package. This function is also likely
 /// to be invoked from assembly, so it's also convenient in that regard.
 export fn microzig_main() noreturn {
-
-    // not sure check
-    initialize_system_memories();
 
     if (!@hasDecl(app, "main"))
         @compileError("The root source file must provide a public function main!");

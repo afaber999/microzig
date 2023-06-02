@@ -2,6 +2,7 @@ const std = @import("std");
 const microzig = @import("microzig");
 const mmio = microzig.mmio;
 const root = @import("root");
+const hal = microzig.hal;
 
 pub const regs = struct {
     // Interrupt Control and State Register
@@ -115,6 +116,36 @@ pub var vector_table: VectorTable = blk: {
         .initial_stack_pointer = microzig.config.end_of_stack,
         .Reset = .{ .C = microzig.cpu.startup_logic._start },
     };
+
+    if (@hasDecl(hal, "interrupt_handler_structs")) {
+        inline for (hal.interrupt_handler_structs) |interrupts| {
+            // @compileLog("name file: " ++ @typeName(interrupts));
+
+            inline for (@typeInfo(interrupts).Struct.decls) |decl| {
+                //@compileLog("root. decls " ++ decl.name);
+
+                const function = @field(interrupts, decl.name);
+
+                if (!@hasField(VectorTable, decl.name)) {
+                    var msg: []const u8 = "There is no such interrupt as '" ++ decl.name ++ "'. Declarations in 'interrupts' must be one of:\n";
+                    inline for (std.meta.fields(VectorTable)) |field| {
+                        if (is_valid_field(field.name)) {
+                            msg = msg ++ "    " ++ field.name ++ "\n";
+                        }
+                    }
+
+                    @compileError(msg);
+                }
+
+                if (!is_valid_field(decl.name))
+                    @compileError("You are not allowed to specify '" ++ decl.name ++ "' in the vector table, for your sins you must now pay a $5 fine to the ZSF: https://github.com/sponsors/ziglang");
+
+                @field(tmp, decl.name) = create_interrupt_vector(function);
+
+            }
+        }
+    }
+
     if (@hasDecl(root, "microzig_options") and @hasDecl(root.microzig_options, "interrupts")) {
         const interrupts = root.microzig_options.interrupts;
         if (@typeInfo(interrupts) != .Struct)
